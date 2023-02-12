@@ -9,4 +9,4 @@ from .models import (
     PreTrainedModelWrapper,
     create_reference_model,
 )
-from .trainer import PPOConfig, PPOTrainer
+from .trainer import PPOConfig, PPOTrainerCustom, PPOTrainer

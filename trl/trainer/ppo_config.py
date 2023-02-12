@@ -49,6 +49,8 @@ class PPOConfig(object):
             Range for clipping values in loss calculation
         vf_coef (`float`, *optional*, defaults to 0.1):
             Scaling factor for value loss
+        entreg_coef (`float`, *optional*, defaults to 0.0):
+            Scaling factor for entropy loss. The higher, the more agents are forced to explore
         batch_size (`int`, *optional*, defaults to 256):
             Number of samples per optimisation step
         forward_batch_size (`int`, *optional*, defaults to 16):
@@ -84,6 +86,7 @@ class PPOConfig(object):
         cliprange: Optional[float] = 0.2,
         cliprange_value: Optional[float] = 0.2,
         vf_coef: Optional[float] = 0.1,
+        entreg_coef: Optional[float] = 0.0, # no entropy regularization by default
         batch_size: Optional[int] = 256,
         forward_batch_size: Optional[int] = 16,
         ppo_epochs: Optional[int] = 4,
@@ -106,6 +109,7 @@ class PPOConfig(object):
         self.cliprange = cliprange
         self.cliprange_value = cliprange_value
         self.vf_coef = vf_coef
+        self.entreg_coef = entreg_coef
         self.batch_size = batch_size
         self.forward_batch_size = forward_batch_size
         self.ppo_epochs = ppo_epochs

@@ -89,7 +89,7 @@ outputs = model(**inputs, labels=inputs["input_ids"])
 """
 
 
-class PPOTrainer(BaseTrainer):
+class PPOTrainerCustom(BaseTrainer):
     """
     The PPOTrainer uses Proximal Policy Optimization to optimise language models.
     Note, this trainer is heavily inspired by the original OpenAI learning to summarize work here:
@@ -648,8 +648,8 @@ class PPOTrainer(BaseTrainer):
         """
         logprobs, vpred, logits = self.compute_logits_vpred(model_input, query, response, rewards)
 
-        loss_p, loss_v, train_stats = self.loss(old_logprobs, values, rewards, logits, vpred, logprobs)
-        loss = loss_p + loss_v
+        loss_p, loss_v, loss_ent, train_stats = self.loss(old_logprobs, values, rewards, logits, vpred, logprobs)
+        loss = loss_p + loss_v + loss_ent
         self.optimizer.zero_grad()
         self.accelerator.backward(loss)
         t = time.time()
@@ -764,16 +764,18 @@ class PPOTrainer(BaseTrainer):
         pg_loss = torch.mean(torch.max(pg_losses, pg_losses2))
         pg_clipfrac = torch.mean(torch.gt(pg_losses2, pg_losses).double())
 
-        loss = pg_loss + self.config.vf_coef * vf_loss
-
         entropy = torch.mean(entropy_from_logits(logits))
+        ent_loss = - entropy # negative entropy to be minimised
+
+        loss = pg_loss + self.config.vf_coef * vf_loss + self.config.entreg_coef * ent_loss
+
         approxkl = 0.5 * torch.mean((logprob - old_logprobs) ** 2)
         policykl = torch.mean(logprob - old_logprobs)
         return_mean, return_var = torch.mean(returns), torch.var(returns)
         value_mean, value_var = torch.mean(values), torch.var(values)
 
         stats = dict(
-            loss=dict(policy=pg_loss, value=vf_loss, total=loss),
+            loss=dict(policy=pg_loss, value=vf_loss, ent_loss=ent_loss, total=loss),
             policy=dict(
                 entropy=entropy,
                 approxkl=approxkl,
@@ -792,7 +794,7 @@ class PPOTrainer(BaseTrainer):
                 var=value_var,
             ),
         )
-        return pg_loss, self.config.vf_coef * vf_loss, flatten_dict(stats)
+        return pg_loss, self.config.vf_coef * vf_loss, self.config.entreg_coef * ent_loss, flatten_dict(stats)
 
     def record_step_stats(self, kl_coef: float, **data):
         """
